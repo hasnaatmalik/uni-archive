@@ -5,12 +5,45 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, CheckCircle, AlertCircle, Lock, Image as ImageIcon, X } from 'lucide-react';
 import Link from 'next/link';
 
+// Compress image client-side using Canvas API
+// Max 1600px wide, JPEG at 82% quality — saves ~60-80% storage
+async function compressImage(file: File): Promise<File> {
+    return new Promise((resolve) => {
+        const MAX_WIDTH = 1600;
+        const QUALITY = 0.82;
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const scale = Math.min(1, MAX_WIDTH / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) { resolve(file); return; }
+                    const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+                    resolve(compressed);
+                },
+                'image/jpeg',
+                QUALITY
+            );
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
 export default function AdminPage() {
     const [password, setPassword] = useState('');
     const [authenticated, setAuthenticated] = useState(false);
     const [authError, setAuthError] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
+    const [originalSize, setOriginalSize] = useState(0);
+    const [compressedSize, setCompressedSize] = useState(0);
     const [caption, setCaption] = useState('');
     const [takenAt, setTakenAt] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -38,26 +71,32 @@ export default function AdminPage() {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
-        setFile(f);
         setSuccess(false);
         setError('');
+        setOriginalSize(f.size);
+        const compressed = await compressImage(f);
+        setCompressedSize(compressed.size);
+        setFile(compressed);
         const reader = new FileReader();
         reader.onloadend = () => setPreview(reader.result as string);
-        reader.readAsDataURL(f);
+        reader.readAsDataURL(compressed);
     };
 
-    const handleDrop = (e: React.DragEvent) => {
+    const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault();
         const f = e.dataTransfer.files[0];
         if (f && f.type.startsWith('image/')) {
-            setFile(f);
             setSuccess(false);
+            setOriginalSize(f.size);
+            const compressed = await compressImage(f);
+            setCompressedSize(compressed.size);
+            setFile(compressed);
             const reader = new FileReader();
             reader.onloadend = () => setPreview(reader.result as string);
-            reader.readAsDataURL(f);
+            reader.readAsDataURL(compressed);
         }
     };
 
@@ -222,21 +261,30 @@ export default function AdminPage() {
                                         <img src={preview} alt="Preview" style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }} />
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null); }}
+                                            onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null); setOriginalSize(0); setCompressedSize(0); }}
                                             style={{
-                                                position: 'absolute',
-                                                top: '8px',
-                                                right: '8px',
-                                                background: 'rgba(10,10,10,0.8)',
-                                                border: 'none',
-                                                color: '#f5f2ed',
-                                                cursor: 'crosshair',
-                                                padding: '4px',
-                                                display: 'flex',
+                                                position: 'absolute', top: '8px', right: '8px',
+                                                background: 'rgba(10,10,10,0.8)', border: 'none',
+                                                color: '#f5f2ed', cursor: 'crosshair', padding: '4px', display: 'flex',
                                             }}
                                         >
                                             <X size={12} />
                                         </button>
+                                        {originalSize > 0 && compressedSize > 0 && (
+                                            <div style={{
+                                                position: 'absolute', bottom: '8px', left: '8px',
+                                                background: 'rgba(10,10,10,0.85)', padding: '4px 8px',
+                                                display: 'flex', gap: '6px', alignItems: 'center',
+                                            }}>
+                                                <span className="font-mono" style={{ fontSize: '9px', color: '#666' }}>
+                                                    {(originalSize / 1024 / 1024).toFixed(1)}MB
+                                                </span>
+                                                <span className="font-mono" style={{ fontSize: '9px', color: '#333' }}>→</span>
+                                                <span className="font-mono" style={{ fontSize: '9px', color: '#4caf50' }}>
+                                                    {(compressedSize / 1024 / 1024).toFixed(1)}MB saved
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', pointerEvents: 'none' }}>

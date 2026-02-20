@@ -14,6 +14,14 @@ interface PhotoModalProps {
 export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
 
     const fetchComments = useCallback(async () => {
         if (!photo) return;
@@ -49,7 +57,6 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
     return (
         <AnimatePresence>
             {photo && (
-                /* Overlay — flex centering */
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -59,43 +66,49 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                     style={{
                         position: 'fixed',
                         inset: 0,
-                        background: 'rgba(8, 8, 8, 0.94)',
+                        background: 'rgba(8, 8, 8, 0.95)',
                         backdropFilter: 'blur(6px)',
                         zIndex: 1000,
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: isMobile ? 'flex-end' : 'center',
                         justifyContent: 'center',
-                        padding: '24px',
+                        padding: isMobile ? '0' : '24px',
                     }}
                 >
-                    {/* Modal panel */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.96, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 20 }}
-                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.96, y: 20 }}
+                        animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+                        exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.96, y: 20 }}
+                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                         onClick={(e) => e.stopPropagation()}
                         style={{
                             width: '100%',
-                            maxWidth: '1080px',
-                            height: '88vh',
-                            maxHeight: '780px',
+                            maxWidth: isMobile ? '100%' : '1080px',
+                            height: isMobile ? '95vh' : '88vh',
+                            maxHeight: isMobile ? '95vh' : '780px',
                             background: '#0f0f0f',
-                            border: '1px solid #222',
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 340px',
+                            border: isMobile ? 'none' : '1px solid #222',
+                            borderTop: isMobile ? '1px solid #222' : undefined,
+                            borderRadius: isMobile ? '8px 8px 0 0' : '0',
+                            display: 'flex',
+                            flexDirection: isMobile ? 'column' : 'row',
                             overflow: 'hidden',
                             position: 'relative',
                         }}
                     >
-                        {/* ── LEFT: image ── */}
+                        {/* ── IMAGE (top on mobile, left on desktop) ── */}
                         <div style={{
                             background: '#080808',
                             overflow: 'hidden',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            position: 'relative',
+                            flexShrink: 0,
+                            // Mobile: fixed height at top. Desktop: flex fills left column
+                            ...(isMobile
+                                ? { width: '100%', height: '45vh', maxHeight: '340px', borderBottom: '1px solid #1e1e1e' }
+                                : { flex: 1, height: '100%' }
+                            ),
                         }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -110,16 +123,19 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                             />
                         </div>
 
-                        {/* ── RIGHT: info + comments ── */}
+                        {/* ── INFO + COMMENTS ── */}
                         <div style={{
                             display: 'flex',
                             flexDirection: 'column',
-                            borderLeft: '1px solid #1e1e1e',
+                            borderLeft: isMobile ? 'none' : '1px solid #1e1e1e',
                             overflow: 'hidden',
+                            width: isMobile ? '100%' : '340px',
+                            flexShrink: 0,
+                            flex: isMobile ? 1 : undefined,
                         }}>
                             {/* Header */}
                             <div style={{
-                                padding: '20px 24px',
+                                padding: '16px 20px',
                                 borderBottom: '1px solid #1e1e1e',
                                 flexShrink: 0,
                             }}>
@@ -127,7 +143,7 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    marginBottom: photo.caption ? '14px' : '0',
+                                    marginBottom: photo.caption ? '10px' : '0',
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <MessageSquare size={11} color="#444" />
@@ -138,14 +154,9 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                                     <button
                                         onClick={onClose}
                                         style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: '#444',
-                                            cursor: 'crosshair',
-                                            padding: '4px',
-                                            display: 'flex',
-                                            transition: 'color 0.15s',
-                                            lineHeight: 0,
+                                            background: 'transparent', border: 'none',
+                                            color: '#444', cursor: 'pointer', padding: '4px',
+                                            display: 'flex', transition: 'color 0.15s', lineHeight: 0,
                                         }}
                                         onMouseEnter={(e) => (e.currentTarget.style.color = '#f5f2ed')}
                                         onMouseLeave={(e) => (e.currentTarget.style.color = '#444')}
@@ -155,12 +166,7 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                                 </div>
 
                                 {photo.caption && (
-                                    <p style={{
-                                        fontSize: '0.875rem',
-                                        color: '#d0ccc5',
-                                        lineHeight: 1.55,
-                                        marginBottom: photo.taken_at ? '10px' : '0',
-                                    }}>
+                                    <p style={{ fontSize: '0.85rem', color: '#d0ccc5', lineHeight: 1.55, marginBottom: photo.taken_at ? '8px' : '0' }}>
                                         {photo.caption}
                                     </p>
                                 )}
@@ -175,7 +181,7 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                                 )}
                             </div>
 
-                            {/* Comments — fills remaining space */}
+                            {/* Comments */}
                             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                                 <CommentSection
                                     photoId={photo.id}

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
-import Image from 'next/image';
 import { supabase, Photo } from '@/lib/supabase';
 import PhotoCard from '@/components/PhotoCard';
 import PhotoModal from '@/components/PhotoModal';
@@ -18,6 +17,7 @@ export default function Home() {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [loading, setLoading] = useState(true);
   const [heroVisible, setHeroVisible] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'oldest' | 'newest'>('oldest');
   const siteTitle = process.env.NEXT_PUBLIC_SITE_TITLE || 'Uni Archive';
 
   useEffect(() => {
@@ -29,9 +29,7 @@ export default function Home() {
     setLoading(true);
     const { data } = await supabase
       .from('photos')
-      .select(`*, comment_count:comments(count)`)
-      .order('taken_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false });
+      .select(`*, comment_count:comments(count)`);
 
     const photos = (data || []).map((p: Photo & { comment_count: { count: number }[] }) => ({
       ...p,
@@ -42,9 +40,16 @@ export default function Home() {
     setLoading(false);
   };
 
+  // Sort client-side so toggling is instant
+  const sortedPhotos = [...photos].sort((a, b) => {
+    const dateA = a.taken_at ? new Date(a.taken_at).getTime() : new Date(a.created_at).getTime();
+    const dateB = b.taken_at ? new Date(b.taken_at).getTime() : new Date(b.created_at).getTime();
+    return sortOrder === 'oldest' ? dateA - dateB : dateB - dateA;
+  });
+
   // Masonry split into 3 columns
   const columns: Photo[][] = [[], [], []];
-  photos.forEach((photo, i) => columns[i % 3].push(photo));
+  sortedPhotos.forEach((photo, i) => columns[i % 3].push(photo));
 
   return (
     <main style={{ position: 'relative', minHeight: '100vh', background: '#0a0a0a' }}>
@@ -252,6 +257,39 @@ export default function Home() {
         zIndex: 1,
         padding: 'clamp(48px, 8vw, 96px) clamp(16px, 4vw, 48px)',
       }}>
+        {/* Sort toggle */}
+        {!loading && photos.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '32px',
+          }}>
+            <span className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.12em' }}>
+              {photos.length} MEMORIES
+            </span>
+            <button
+              onClick={() => setSortOrder(s => s === 'oldest' ? 'newest' : 'oldest')}
+              style={{
+                background: 'transparent',
+                border: '1px solid #222',
+                color: '#666',
+                cursor: 'pointer',
+                padding: '6px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'border-color 0.2s, color 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#444'; e.currentTarget.style.color = '#f5f2ed'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#666'; }}
+            >
+              <span className="font-mono" style={{ fontSize: '9px', letterSpacing: '0.1em' }}>
+                {sortOrder === 'oldest' ? '↑ OLDEST FIRST' : '↓ NEWEST FIRST'}
+              </span>
+            </button>
+          </div>
+        )}
         {loading ? (
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', paddingTop: '96px' }}>
             {[0, 1, 2].map((i) => (
