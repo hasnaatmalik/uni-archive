@@ -1,65 +1,338 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import Image from 'next/image';
+import { supabase, Photo } from '@/lib/supabase';
+import PhotoCard from '@/components/PhotoCard';
+import PhotoModal from '@/components/PhotoModal';
+import { Lock } from 'lucide-react';
+
+const ParticleField = dynamic(() => import('@/components/ParticleField'), { ssr: false });
+
+const TICKER_ITEMS = ['FAST NU CFD', 'BS COMPUTER SCIENCE', '2022 — 2026', 'CAMPUS MEMORIES', 'THE PEOPLE ●', 'THE PLACE', 'FOUR YEARS', 'FAST NU CFD', 'BS COMPUTER SCIENCE', '2022 — 2026', 'CAMPUS MEMORIES', 'THE PEOPLE ●', 'THE PLACE', 'FOUR YEARS'];
 
 export default function Home() {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [heroVisible, setHeroVisible] = useState(false);
+  const siteTitle = process.env.NEXT_PUBLIC_SITE_TITLE || 'Uni Archive';
+
+  useEffect(() => {
+    fetchPhotos();
+    setTimeout(() => setHeroVisible(true), 100);
+  }, []);
+
+  const fetchPhotos = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('photos')
+      .select(`*, comment_count:comments(count)`)
+      .order('taken_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false });
+
+    const photos = (data || []).map((p: Photo & { comment_count: { count: number }[] }) => ({
+      ...p,
+      comment_count: p.comment_count?.[0]?.count ?? 0,
+    }));
+
+    setPhotos(photos);
+    setLoading(false);
+  };
+
+  // Masonry split into 3 columns
+  const columns: Photo[][] = [[], [], []];
+  photos.forEach((photo, i) => columns[i % 3].push(photo));
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main style={{ position: 'relative', minHeight: '100vh', background: '#0a0a0a' }}>
+      <ParticleField />
+
+      {/* —— HERO —— */}
+      <section style={{
+        position: 'relative',
+        zIndex: 1,
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '0 clamp(24px, 6vw, 96px)',
+        borderBottom: '1px solid #1e1e1e',
+      }}>
+        {/* Top bar */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          padding: '28px clamp(24px, 6vw, 96px)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid #1a1a1a',
+        }}>
+          <span className="font-mono" style={{ fontSize: '11px', color: '#444', letterSpacing: '0.12em' }}>
+            {siteTitle.toUpperCase()}
+          </span>
+          <a
+            href="/admin"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+          >
+            <Lock size={11} color="#333" />
+          </a>
+        </div>
+
+        {/* Main headline */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: heroVisible ? 1 : 0 }}
+          transition={{ duration: 0.01 }}
+        >
+          <h1 className="font-display" style={{
+            fontSize: 'clamp(64px, 14vw, 200px)',
+            fontWeight: 800,
+            lineHeight: 0.9,
+            letterSpacing: '-0.03em',
+            color: '#f5f2ed',
+            mixBlendMode: 'normal',
+          }}>
+            <AnimatedWord text="THE" delay={0} />
+            <br />
+            <AnimatedWord text="ARCHIVE" delay={200} />
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+        </motion.div>
+
+        {/* Sub info row */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.5 }}
+          style={{
+            marginTop: '48px',
+            display: 'flex',
+            gap: 'clamp(24px, 6vw, 80px)',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.12em', marginBottom: '6px' }}>
+              MEMORIES
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#f5f2ed' }}>
+              {loading ? '—' : photos.length}
+            </div>
+          </div>
+          <div>
+            <div className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.12em', marginBottom: '6px' }}>
+              BATCH
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#f5f2ed' }}>
+              2022–26
+            </div>
+          </div>
+          <div>
+            <div className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.12em', marginBottom: '6px' }}>
+              CAMPUS
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#f5f2ed' }}>
+              CFD
+            </div>
+          </div>
+          <div>
+            <div className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.12em', marginBottom: '6px' }}>
+              DEGREE
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#f5f2ed' }}>
+              BS CS
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Scroll cue */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.4, duration: 0.5 }}
+          style={{
+            position: 'absolute',
+            bottom: '28px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <span className="font-mono" style={{ fontSize: '10px', color: '#333', letterSpacing: '0.12em' }}>
+            SCROLL
+          </span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width: '1px', height: '32px', background: '#2a2a2a' }}
+          />
+        </motion.div>
+      </section>
+
+      {/* —— TICKER —— */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        overflow: 'hidden',
+        borderBottom: '1px solid #1a1a1a',
+        padding: '14px 0',
+        background: '#0a0a0a',
+      }}>
+        <div className="ticker-inner">
+          {TICKER_ITEMS.map((item, i) => (
+            <span
+              key={i}
+              className="font-mono"
+              style={{
+                fontSize: '11px',
+                color: '#2a2a2a',
+                letterSpacing: '0.15em',
+                marginRight: '48px',
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* —— INTRO BLURB —— */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          padding: 'clamp(48px, 8vw, 96px) clamp(24px, 6vw, 96px)',
+          borderBottom: '1px solid #1a1a1a',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '48px',
+          alignItems: 'start',
+        }}
+      >
+        <div>
+          <p className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.12em', marginBottom: '16px' }}>
+            THE STORY
+          </p>
+          <p style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.5rem)', fontWeight: 500, color: '#f5f2ed', lineHeight: 1.5 }}>
+            Four years. One campus. Countless late nights, bad chai, study sessions that turned into something more — this is where it all happened.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ borderLeft: '2px solid #1e1e1e', paddingLeft: '20px' }}>
+            <p className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '6px' }}>UNIVERSITY</p>
+            <p style={{ fontSize: '0.95rem', color: '#f5f2ed' }}>FAST NU — CFD Campus</p>
+          </div>
+          <div style={{ borderLeft: '2px solid #1e1e1e', paddingLeft: '20px' }}>
+            <p className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '6px' }}>DEGREE</p>
+            <p style={{ fontSize: '0.95rem', color: '#f5f2ed' }}>BS Computer Science</p>
+          </div>
+          <div style={{ borderLeft: '2px solid #1e1e1e', paddingLeft: '20px' }}>
+            <p className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em', marginBottom: '6px' }}>BATCH</p>
+            <p style={{ fontSize: '0.95rem', color: '#f5f2ed' }}>2022 — 2026</p>
+          </div>
         </div>
-      </main>
-    </div>
+      </motion.section>
+
+      {/* —— GRID —— */}
+      <section style={{
+        position: 'relative',
+        zIndex: 1,
+        padding: 'clamp(48px, 8vw, 96px) clamp(16px, 4vw, 48px)',
+      }}>
+        {loading ? (
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', paddingTop: '96px' }}>
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#2a2a2a' }}
+                animate={{ opacity: [0.2, 1, 0.2] }}
+                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
+        ) : photos.length === 0 ? (
+          <div style={{ textAlign: 'center', paddingTop: '96px' }}>
+            <p className="font-mono" style={{ fontSize: '12px', color: '#333', letterSpacing: '0.12em' }}>
+              NO PHOTOS YET
+            </p>
+            <p style={{ fontSize: '0.8rem', color: '#2a2a2a', marginTop: '8px' }}>
+              Head to <a href="/admin" style={{ color: '#444' }}>/admin</a> to add the first memory.
+            </p>
+          </div>
+        ) : (
+          <div className="masonry-grid">
+            {columns.map((col, ci) => (
+              <div key={ci} className="masonry-column">
+                {col.map((photo, pi) => (
+                  <PhotoCard
+                    key={photo.id}
+                    photo={photo}
+                    index={ci * Math.ceil(photos.length / 3) + pi}
+                    onClick={setSelectedPhoto}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* —— FOOTER —— */}
+      <footer style={{
+        position: 'relative',
+        zIndex: 1,
+        borderTop: '1px solid #1a1a1a',
+        padding: '28px clamp(24px, 6vw, 96px)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <span className="font-mono" style={{ fontSize: '10px', color: '#2a2a2a', letterSpacing: '0.1em' }}>
+          {siteTitle.toUpperCase()} © {new Date().getFullYear()}
+        </span>
+        <span className="font-mono" style={{ fontSize: '10px', color: '#2a2a2a', letterSpacing: '0.1em' }}>
+          FAST NU CFD · BS CS · 2022–2026
+        </span>
+      </footer>
+
+      {/* Modal */}
+      <PhotoModal photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
+    </main>
+  );
+}
+
+// Inline word-by-word animator using CSS-only approach with staggered letter spans
+function AnimatedWord({ text, delay = 0 }: { text: string; delay?: number }) {
+  return (
+    <span style={{ display: 'inline-block' }}>
+      {text.split('').map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: '100%', opacity: 0, display: 'inline-block' }}
+          animate={{ y: '0%', opacity: 1 }}
+          transition={{
+            duration: 0.6,
+            delay: delay / 1000 + i * 0.04,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          style={{ display: 'inline-block', overflow: 'hidden' }}
+        >
+          {char}
+        </motion.span>
+      ))}
+    </span>
   );
 }
