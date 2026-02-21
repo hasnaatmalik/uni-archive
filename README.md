@@ -15,6 +15,7 @@ A personal university photo archive — only you can post, everyone can comment.
 create table photos (
   id uuid primary key default gen_random_uuid(),
   image_url text not null,
+  thumbnail_url text,
   caption text,
   taken_at date,
   created_at timestamptz default now()
@@ -78,4 +79,6 @@ Open [http://localhost:3000](http://localhost:3000)
 
 - **Viewing photos**: anyone with the link can see the archive at `/`
 - **Adding photos**: go to `/admin` → enter your password → upload with caption + date
+- **Managing photos**: go to `/admin` → Manage tab to edit captions, dates, or delete bad uploads.
+- **Performance**: Clicking `GENERATE THUMBNAILS` in the Manage tab will process all existing photos to create tiny, blurred placeholders for instant visual feedback on slow connections.
 - **Commenting**: anyone can leave a comment with their name on any photo
