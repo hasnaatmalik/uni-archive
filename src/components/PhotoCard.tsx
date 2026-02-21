@@ -26,7 +26,8 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
             animate={{ opacity: 1, y: 0 }}
             transition={{
                 duration: 0.5,
-                delay: index * 0.06,
+                // Cap the delay so items deep in the list (or in col 2/3) don't delay for seconds
+                delay: Math.min(index * 0.04, 0.4),
                 ease: [0.16, 1, 0.3, 1],
             }}
             className="photo-card"
