@@ -8,10 +8,11 @@ import { MessageSquare } from 'lucide-react';
 interface PhotoCardProps {
     photo: Photo;
     index: number;
+    priority?: boolean;
     onClick: (photo: Photo) => void;
 }
 
-export default function PhotoCard({ photo, index, onClick }: PhotoCardProps) {
+export default function PhotoCard({ photo, index, priority = false, onClick }: PhotoCardProps) {
     const [loaded, setLoaded] = useState(false);
 
     const formatDate = (dateStr: string) => {
@@ -45,6 +46,7 @@ export default function PhotoCard({ photo, index, onClick }: PhotoCardProps) {
                         src={photo.thumbnail_url}
                         alt=""
                         aria-hidden="true"
+                        decoding="async"
                         style={{
                             width: '100%',
                             height: 'auto',
@@ -60,6 +62,8 @@ export default function PhotoCard({ photo, index, onClick }: PhotoCardProps) {
                     src={photo.image_url}
                     alt={photo.caption || 'Archive photo'}
                     onLoad={() => setLoaded(true)}
+                    loading={priority ? 'eager' : 'lazy'}
+                    decoding="async"
                     style={{
                         width: '100%',
                         height: 'auto',

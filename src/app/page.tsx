@@ -319,6 +319,7 @@ export default function Home() {
                     key={photo.id}
                     photo={photo}
                     index={ci * Math.ceil(photos.length / 3) + pi}
+                    priority={pi < 2}
                     onClick={setSelectedPhoto}
                   />
                 ))}
