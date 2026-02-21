@@ -39,7 +39,7 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
             }}
         >
             {/* The image with blur-up placeholder */}
-            <div style={{ position: 'relative', width: '100%' }}>
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '4/5', background: '#111' }}>
                 {/* Blurred thumbnail placeholder */}
                 {photo.thumbnail_url && !loaded && (
                     <img
@@ -49,8 +49,9 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
                         decoding="async"
                         style={{
                             width: '100%',
-                            height: 'auto',
+                            height: '100%',
                             display: 'block',
+                            objectFit: 'cover',
                             filter: 'blur(20px)',
                             transform: 'scale(1.1)',
                         }}
@@ -66,12 +67,12 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
                     decoding="async"
                     style={{
                         width: '100%',
-                        height: 'auto',
+                        height: '100%',
                         display: 'block',
                         objectFit: 'cover',
                         // If thumbnail exists, overlay on top of it
                         ...(photo.thumbnail_url ? {
-                            position: loaded ? 'relative' : 'absolute',
+                            position: 'absolute',
                             top: 0,
                             left: 0,
                             opacity: loaded ? 1 : 0,
