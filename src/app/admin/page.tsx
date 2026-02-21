@@ -192,23 +192,43 @@ export default function AdminPage() {
 
     // ── Manage: generate thumbnails for existing photos ──
     const backfillThumbnails = async () => {
+        if (!confirm('This will process photos in batches. Please keep this tab open until it finishes.')) return;
+
         setBackfilling(true);
-        setBackfillStatus('Processing...');
-        try {
-            const res = await fetch('/api/admin/backfill-thumbnails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setBackfillStatus(data.message);
-                loadPhotos(); // refresh the list
-            } else {
-                setBackfillStatus(`Error: ${data.error}`);
+        let totalProcessed = 0;
+        let isDone = false;
+
+        while (!isDone) {
+            setBackfillStatus(`Processing... (${totalProcessed} done so far)`);
+            try {
+                const res = await fetch('/api/admin/backfill-thumbnails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password }),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    totalProcessed += data.processed || 0;
+                    isDone = data.done;
+
+                    // If it processed nothing and says done, we're completely finished
+                    if (isDone) {
+                        setBackfillStatus(`Finished! Processed ${totalProcessed} total thumbnails.`);
+                        loadPhotos(); // refresh the list
+                    } else if (data.processed === 0 && !data.done) {
+                        // Failsafe to prevent infinite loop if API is misbehaving
+                        setBackfillStatus('Error: API returned 0 processed but not done.');
+                        break;
+                    }
+                } else {
+                    setBackfillStatus(`Error: ${data.error}`);
+                    break;
+                }
+            } catch {
+                setBackfillStatus('Failed to connect. The process might have timed out.');
+                break;
             }
-        } catch {
-            setBackfillStatus('Failed to connect');
         }
         setBackfilling(false);
     };

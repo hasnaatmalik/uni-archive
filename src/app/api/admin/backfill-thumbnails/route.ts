@@ -16,18 +16,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Fetch all photos that don't have a thumbnail yet
+        // Fetch a small batch of photos that don't have a thumbnail yet
+        // We limit to 5 per request to avoid Vercel serverless function timeouts (10s limit on free tier)
         const { data: photos, error: fetchError } = await supabase
             .from('photos')
             .select('id, image_url')
-            .is('thumbnail_url', null);
+            .is('thumbnail_url', null)
+            .limit(5);
 
         if (fetchError) {
             return NextResponse.json({ error: fetchError.message }, { status: 500 });
         }
 
         if (!photos || photos.length === 0) {
-            return NextResponse.json({ processed: 0, message: 'All photos already have thumbnails' });
+            return NextResponse.json({ processed: 0, done: true, message: 'All photos already have thumbnails' });
         }
 
         let processed = 0;
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
             processed,
             failed,
             total: photos.length,
+            done: false, // Tell the client there might be more batches
             message: `Generated ${processed} thumbnails${failed > 0 ? `, ${failed} failed` : ''}`,
         });
     } catch (err) {
