@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type Photo = {
   id: string;
   image_url: string;
+  thumbnail_url: string | null;
   caption: string | null;
   taken_at: string | null;
   created_at: string;

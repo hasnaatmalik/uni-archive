@@ -54,10 +54,10 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get image_url first so we can delete from storage too
+    // Get image_url and thumbnail_url so we can delete from storage too
     const { data: photo } = await supabase
         .from('photos')
-        .select('image_url')
+        .select('image_url, thumbnail_url')
         .eq('id', id)
         .single();
 
@@ -66,13 +66,27 @@ export async function DELETE(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Delete from Storage (best-effort, don't fail if it errors)
+    const filesToDelete: string[] = [];
+
     if (photo?.image_url) {
         try {
             const url = new URL(photo.image_url);
             const filePath = url.pathname.split('/object/public/photos/')[1];
-            if (filePath) {
-                await supabase.storage.from('photos').remove([filePath]);
-            }
+            if (filePath) filesToDelete.push(filePath);
+        } catch { /* ignore */ }
+    }
+
+    if (photo?.thumbnail_url) {
+        try {
+            const url = new URL(photo.thumbnail_url);
+            const filePath = url.pathname.split('/object/public/photos/')[1];
+            if (filePath) filesToDelete.push(filePath);
+        } catch { /* ignore */ }
+    }
+
+    if (filesToDelete.length > 0) {
+        try {
+            await supabase.storage.from('photos').remove(filesToDelete);
         } catch { /* ignore storage errors */ }
     }
 

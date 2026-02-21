@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
     const adminPassword = process.env.ADMIN_PASSWORD;
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
         const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
         const arrayBuffer = await file.arrayBuffer();
-        const buffer = new Uint8Array(arrayBuffer);
+        const buffer = Buffer.from(arrayBuffer);
 
         const { error: uploadError } = await supabase.storage
             .from('photos')
@@ -43,6 +44,31 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: uploadError.message }, { status: 500 });
         }
 
+        // Generate tiny thumbnail for blur-up placeholder
+        let thumbnailUrl: string | null = null;
+        try {
+            const thumbBuffer = await sharp(buffer)
+                .resize(20, null, { withoutEnlargement: true })
+                .jpeg({ quality: 20 })
+                .blur(2)
+                .toBuffer();
+
+            const thumbFileName = `thumb-${fileName.replace(/\.[^.]+$/, '.jpg')}`;
+            const { error: thumbUploadError } = await supabase.storage
+                .from('photos')
+                .upload(thumbFileName, thumbBuffer, {
+                    contentType: 'image/jpeg',
+                    upsert: false,
+                });
+
+            if (!thumbUploadError) {
+                const { data: thumbUrlData } = supabase.storage.from('photos').getPublicUrl(thumbFileName);
+                thumbnailUrl = thumbUrlData.publicUrl;
+            }
+        } catch (thumbErr) {
+            console.error('Thumbnail generation failed (non-fatal):', thumbErr);
+        }
+
         // Get public URL
         const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
 
@@ -51,6 +77,7 @@ export async function POST(request: NextRequest) {
             .from('photos')
             .insert({
                 image_url: urlData.publicUrl,
+                thumbnail_url: thumbnailUrl,
                 caption: caption || null,
                 taken_at: takenAt || null,
             })

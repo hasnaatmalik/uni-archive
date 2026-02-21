@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Photo } from '@/lib/supabase';
 import { MessageSquare } from 'lucide-react';
@@ -11,6 +12,8 @@ interface PhotoCardProps {
 }
 
 export default function PhotoCard({ photo, index, onClick }: PhotoCardProps) {
+    const [loaded, setLoaded] = useState(false);
+
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
         return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -31,19 +34,45 @@ export default function PhotoCard({ photo, index, onClick }: PhotoCardProps) {
                 position: 'relative',
                 cursor: 'crosshair',
                 background: '#111',
+                overflow: 'hidden',
             }}
         >
-            {/* The image */}
+            {/* The image with blur-up placeholder */}
             <div style={{ position: 'relative', width: '100%' }}>
+                {/* Blurred thumbnail placeholder */}
+                {photo.thumbnail_url && !loaded && (
+                    <img
+                        src={photo.thumbnail_url}
+                        alt=""
+                        aria-hidden="true"
+                        style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                            filter: 'blur(20px)',
+                            transform: 'scale(1.1)',
+                        }}
+                    />
+                )}
+                {/* Full resolution image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={photo.image_url}
                     alt={photo.caption || 'Archive photo'}
+                    onLoad={() => setLoaded(true)}
                     style={{
                         width: '100%',
                         height: 'auto',
                         display: 'block',
                         objectFit: 'cover',
+                        // If thumbnail exists, overlay on top of it
+                        ...(photo.thumbnail_url ? {
+                            position: loaded ? 'relative' : 'absolute',
+                            top: 0,
+                            left: 0,
+                            opacity: loaded ? 1 : 0,
+                            transition: 'opacity 0.4s ease-in-out',
+                        } : {}),
                     }}
                 />
             </div>

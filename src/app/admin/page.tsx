@@ -99,6 +99,8 @@ export default function AdminPage() {
     // Manage state
     const [managed, setManaged] = useState<ManagedPhoto[]>([]);
     const [loadingPhotos, setLoadingPhotos] = useState(false);
+    const [backfillStatus, setBackfillStatus] = useState<string | null>(null);
+    const [backfilling, setBackfilling] = useState(false);
 
     // ── Auth ──
     const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -186,6 +188,29 @@ export default function AdminPage() {
         setManaged(prev => prev.map(p =>
             p.id === photoId ? { ...p, comments: p.comments.filter(c => c.id !== commentId) } : p
         ));
+    };
+
+    // ── Manage: generate thumbnails for existing photos ──
+    const backfillThumbnails = async () => {
+        setBackfilling(true);
+        setBackfillStatus('Processing...');
+        try {
+            const res = await fetch('/api/admin/backfill-thumbnails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setBackfillStatus(data.message);
+                loadPhotos(); // refresh the list
+            } else {
+                setBackfillStatus(`Error: ${data.error}`);
+            }
+        } catch {
+            setBackfillStatus('Failed to connect');
+        }
+        setBackfilling(false);
     };
 
     // ── Upload tab logic ──
@@ -415,8 +440,26 @@ export default function AdminPage() {
                                         <h1 className="font-display" style={{ fontSize: '24px', fontWeight: 800, color: '#f5f2ed', marginBottom: '4px' }}>MANAGE ARCHIVE</h1>
                                         <p className="font-mono" style={{ fontSize: '10px', color: '#444', letterSpacing: '0.1em' }}>EDIT CAPTIONS, DATES AND DELETE MEMORIES</p>
                                     </div>
-                                    <button onClick={loadPhotos} className="btn-ghost" style={{ fontSize: '9px' }}>REFRESH</button>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <button onClick={backfillThumbnails} disabled={backfilling} className="btn-ghost" style={{ fontSize: '9px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {backfilling && (
+                                                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                                    style={{ width: '10px', height: '10px', border: '1px solid #666', borderTopColor: '#f5f2ed', borderRadius: '50%' }} />
+                                            )}
+                                            GENERATE THUMBNAILS
+                                        </button>
+                                        <button onClick={loadPhotos} className="btn-ghost" style={{ fontSize: '9px' }}>REFRESH</button>
+                                    </div>
                                 </div>
+                                {backfillStatus && (
+                                    <div style={{ marginBottom: '16px', padding: '10px 14px', border: '1px solid #1e3320', background: '#0d1f10', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <CheckCircle size={12} color="#4caf50" />
+                                        <span className="font-mono" style={{ fontSize: '10px', color: '#4caf50', letterSpacing: '0.08em' }}>{backfillStatus}</span>
+                                        <button onClick={() => setBackfillStatus(null)} style={{ background: 'none', border: 'none', color: '#4caf50', cursor: 'pointer', marginLeft: 'auto', display: 'flex' }}>
+                                            <X size={10} />
+                                        </button>
+                                    </div>
+                                )}
 
                                 {loadingPhotos ? (
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', paddingTop: '64px' }}>
