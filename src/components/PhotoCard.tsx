@@ -40,9 +40,9 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
             }}
         >
             {/* The image with blur-up placeholder */}
-            <div style={{ position: 'relative', width: '100%', aspectRatio: '4/5', background: '#111' }}>
-                {/* Blurred thumbnail placeholder */}
-                {photo.thumbnail_url && !loaded && (
+            <div style={{ position: 'relative', width: '100%', background: '#111' }}>
+                {/* Blurred thumbnail placeholder naturally sets the aspect ratio/height! */}
+                {photo.thumbnail_url && (
                     <img
                         src={photo.thumbnail_url}
                         alt=""
@@ -50,9 +50,8 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
                         decoding="async"
                         style={{
                             width: '100%',
-                            height: '100%',
+                            height: 'auto',
                             display: 'block',
-                            objectFit: 'cover',
                             filter: 'blur(20px)',
                             transform: 'scale(1.1)',
                         }}
@@ -68,14 +67,14 @@ export default function PhotoCard({ photo, index, priority = false, onClick }: P
                     decoding="async"
                     style={{
                         width: '100%',
-                        height: '100%',
+                        height: 'auto',
                         display: 'block',
-                        objectFit: 'cover',
-                        // If thumbnail exists, overlay on top of it
+                        // If thumbnail exists, absolutely position the main image over it
                         ...(photo.thumbnail_url ? {
                             position: 'absolute',
                             top: 0,
                             left: 0,
+                            height: '100%',
                             opacity: loaded ? 1 : 0,
                             transition: 'opacity 0.4s ease-in-out',
                         } : {}),
