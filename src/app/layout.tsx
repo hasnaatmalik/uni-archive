@@ -6,8 +6,6 @@ export const metadata: Metadata = {
   description: 'A personal university photo archive.',
 };
 
-import SmoothScroll from '@/components/SmoothScroll';
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -19,9 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>
-        <SmoothScroll>{children}</SmoothScroll>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
