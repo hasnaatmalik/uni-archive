@@ -1,7 +1,8 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { X, MessageSquare, Calendar } from 'lucide-react';
 import { Photo, Comment, supabase } from '@/lib/supabase';
 import CommentSection from './CommentSection';
@@ -12,8 +13,6 @@ interface PhotoModalProps {
 }
 
 export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
-    const [comments, setComments] = useState<Comment[]>([]);
-    const [loading, setLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -23,25 +22,30 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
         return () => window.removeEventListener('resize', check);
     }, []);
 
-    const fetchComments = useCallback(async () => {
-        if (!photo) return;
-        setLoading(true);
-        const { data } = await supabase
+    const fetcher = async () => {
+        if (!photo) return [];
+        const { data, error } = await supabase
             .from('comments')
             .select('*')
             .eq('photo_id', photo.id)
             .order('created_at', { ascending: true });
-        setComments(data || []);
-        setLoading(false);
-    }, [photo]);
+        if (error) throw error;
+        return data || [];
+    };
+
+    const { data: commentsData, isLoading: loading, mutate: mutateComments } = useSWR<Comment[]>(
+        photo ? `comments-${photo.id}` : null,
+        fetcher,
+        { revalidateOnFocus: false }
+    );
+    const comments = commentsData || [];
 
     useEffect(() => {
         if (photo) {
-            fetchComments();
             document.body.style.overflow = 'hidden';
         }
         return () => { document.body.style.overflow = ''; };
-    }, [photo, fetchComments]);
+    }, [photo]);
 
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -187,7 +191,7 @@ export default function PhotoModal({ photo, onClose }: PhotoModalProps) {
                                     photoId={photo.id}
                                     comments={comments}
                                     loading={loading}
-                                    onCommentAdded={fetchComments}
+                                    onCommentAdded={() => mutateComments()}
                                 />
                             </div>
                         </div>

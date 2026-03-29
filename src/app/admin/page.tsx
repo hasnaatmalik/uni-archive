@@ -135,8 +135,8 @@ export default function AdminPage() {
     }, []);
 
     useEffect(() => {
-        if (authenticated && tab === 'manage') loadPhotos();
-    }, [authenticated, tab, loadPhotos]);
+        if (authenticated && tab === 'manage' && managed.length === 0) loadPhotos();
+    }, [authenticated, tab, loadPhotos, managed.length]);
 
     // ── Manage: save edits ──
     const savePhoto = async (photo: ManagedPhoto) => {

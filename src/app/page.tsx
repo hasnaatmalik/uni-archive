@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
+import useSWR from 'swr';
 import { supabase, Photo } from '@/lib/supabase';
 import PhotoCard from '@/components/PhotoCard';
 import PhotoModal from '@/components/PhotoModal';
@@ -13,32 +14,32 @@ const ParticleField = dynamic(() => import('@/components/ParticleField'), { ssr:
 const TICKER_ITEMS = ['FAST NU CFD', 'BS COMPUTER SCIENCE', '2022 — 2026', 'CAMPUS MEMORIES', 'THE PEOPLE ●', 'THE PLACE', 'FOUR YEARS', 'FAST NU CFD', 'BS COMPUTER SCIENCE', '2022 — 2026', 'CAMPUS MEMORIES', 'THE PEOPLE ●', 'THE PLACE', 'FOUR YEARS'];
 
 export default function Home() {
-  const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const [loading, setLoading] = useState(true);
   const [heroVisible, setHeroVisible] = useState(false);
   const [sortOrder, setSortOrder] = useState<'oldest' | 'newest'>('oldest');
   const siteTitle = process.env.NEXT_PUBLIC_SITE_TITLE || 'Uni Archive';
 
-  useEffect(() => {
-    fetchPhotos();
-    setTimeout(() => setHeroVisible(true), 100);
-  }, []);
-
-  const fetchPhotos = async () => {
-    setLoading(true);
-    const { data } = await supabase
+  const fetcher = async () => {
+    const { data, error } = await supabase
       .from('photos')
       .select(`*, comment_count:comments(count)`);
-
-    const photos = (data || []).map((p: Photo & { comment_count: { count: number }[] }) => ({
+    if (error) throw error;
+    
+    return (data || []).map((p: Photo & { comment_count: { count: number }[] }) => ({
       ...p,
       comment_count: p.comment_count?.[0]?.count ?? 0,
     }));
-
-    setPhotos(photos);
-    setLoading(false);
   };
+
+  const { data: fetchedPhotos, isLoading: loading } = useSWR<Photo[]>('home-photos', fetcher, {
+    revalidateOnFocus: false, // Prevents egress spike on tab switch
+  });
+  
+  const photos = fetchedPhotos || [];
+
+  useEffect(() => {
+    setTimeout(() => setHeroVisible(true), 100);
+  }, []);
 
   // Sort client-side so toggling is instant
   const sortedPhotos = [...photos].sort((a, b) => {
